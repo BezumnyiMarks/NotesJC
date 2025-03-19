@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">Список дел</string>
+    <string name="categories">Категории</string>
+    <string name="add">Добавить</string>
+    <string name="archive">Архив</string>
+    <string name="category_hint">Категория</string>
+    <string name="note_hint">Запись</string>
+    <string name="add_reminder">Добавить напоминание</string>
+    <string name="add_image">Добавить изображение</string>
+    <string name="change_priority">Изменить приоритет</string>
+    <string name="save">Сохранить</string>
+    <string name="exit">Выйти</string>
+    <string name="cancel">Отменить</string>
+    <string name="urgently">Срочно</string>
+    <string name="middle">Следует поторопиться</string>
+    <string name="relax">Чилим</string>
+    <string name="move_to_note">Go meow!</string>
+    <string name="change_time">Поменять время</string>
+    <string name="alert_title">Предупреждение</string>
+    <string name="save_title">Сохранение</string>
+    <string name="save_confirm_dialog_text">Подтвердить сохранение и выйти?</string>
+    <string name="exit_confirm_dialog_text">Запись не была сохранена. Выйти без сохранения?</string>
+    <string name="notification_title">Так, похоже, все запланированные дела не разгребутся сами собой...</string>
+</resources>
