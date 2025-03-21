@@ -23,10 +23,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +38,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +48,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.example.notesjc.viewmodels.DBViewModel
 import com.example.notesjc.R
+import com.example.notesjc.common_views.SwipeToDeleteContainer
 import com.example.notesjc.data.FullNote
 import kotlinx.serialization.Serializable
 
@@ -53,18 +57,19 @@ object ScreenCategories
 
 @Composable
 fun ScreenCategories(dbViewModel: DBViewModel, navController: NavController){
+    dbViewModel.clearCurrentNote()
     dbViewModel.getAll()
-    val allNotes = dbViewModel.allNotes.collectAsState().value
+    var allNotes = dbViewModel.allNotes.collectAsState().value
     val allCategoriesNames = mutableListOf<String>()
-    if (allNotes.isNotEmpty())
-        allNotes.forEach{
-            if (!allCategoriesNames.contains(it.note?.category?:""))
-                allCategoriesNames.add(it.note?.category ?: "")
-        }
 
-    var lifecycle by remember {
+    var lifecycle by rememberSaveable {
         mutableStateOf(Lifecycle.Event.ON_CREATE)
     }
+
+    var deletedCategory by rememberSaveable {
+        mutableStateOf(listOf<FullNote>())
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver{ _, event ->
@@ -76,67 +81,78 @@ fun ScreenCategories(dbViewModel: DBViewModel, navController: NavController){
         }
     }
 
-   // Box(
-   //     contentAlignment = Alignment.TopCenter,
-   //     modifier = Modifier.fillMaxWidth()
-   // ){
-        //Column(
-        //    modifier = Modifier.padding(top = 16.dp)
-        //) {
-        //}
-        if (lifecycle == Lifecycle.Event.ON_RESUME)
-            //Card(
-            //    colors = CardDefaults.cardColors(
-            //        containerColor = colorResource(R.color.white)
-            //    ),
-            //    shape = RoundedCornerShape(0),
-            //    elevation = CardDefaults.cardElevation(1.dp)
-            //) {
-                LazyColumn (
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(16.dp).fillMaxWidth()
-                ){
-                    item {
-                        allCategoriesNames.forEachIndexed{ index, categoryName ->
-                            val categoryNotes = mutableListOf<FullNote>()
-                            allNotes.forEach {
-                                if (it.note?.category == categoryName)
-                                    categoryNotes.add(it)
-                            }
-                            CategoryView(
-                                categoryName,
-                                categoryNotes,
-                                categoryNotes.size,
-                            ){
-                                navController.navigate(ScreenNotes(categoryName))
-                            }
-                            HorizontalDivider(
-                                thickness = 1.dp,
-                                color = if (index != allCategoriesNames.lastIndex)
-                                    colorResource(R.color.divider)
-                                else Color.Transparent,
-                                modifier = Modifier.padding(vertical = 16.dp)
-                            )
-                        }
+    if (lifecycle == Lifecycle.Event.ON_RESUME) {
+        allNotes = allNotes.sortedBy { it.note?.priority }
+        if (allNotes.isNotEmpty())
+            allNotes.forEach {
+                if (!allCategoriesNames.contains(it.note?.category ?: ""))
+                    allCategoriesNames.add(it.note?.category ?: "")
+            }
 
-                        SetImage(
-                            null,
-                            painterResource(id = R.drawable.app_poster),
-                            Modifier,
-                            RoundedCornerShape(0),
-                            ContentScale.Crop
-                        )
+        LazyColumn(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+        ) {
+            item {
+                allCategoriesNames.forEachIndexed { index, categoryName ->
+                    val categoryNotes = mutableListOf<FullNote>()
+                    allNotes.forEach {
+                        if (it.note?.category == categoryName)
+                            categoryNotes.add(it)
                     }
+
+                    SwipeToDeleteContainer(
+                        item = categoryNotes,
+                        onDelete = {
+                            deletedCategory = categoryNotes
+                        }
+                    ) {
+                        CategoryView(
+                            categoryName,
+                            categoryNotes,
+                        ) {
+                            navController.navigate(ScreenNotes(categoryName))
+                        }
+                    }
+
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = if (index != allCategoriesNames.lastIndex)
+                            colorResource(R.color.divider)
+                        else Color.Transparent,
+                        modifier = Modifier.padding(vertical = 16.dp)
+                    )
                 }
-            //}
-    //}
+
+                SetImage(
+                    null,
+                    painterResource(id = R.drawable.app_poster),
+                    Modifier,
+                    RoundedCornerShape(0),
+                    ContentScale.Crop
+                )
+            }
+        }
+    }
+    if (deletedCategory.isNotEmpty())
+        DeleteAlertDialog(
+            dialogText = stringResource(R.string.delete_category),
+            onCancelClick = {
+                deletedCategory = listOf()
+            },
+            onExitClick = {
+                dbViewModel.delete(deletedCategory)
+                deletedCategory = listOf()
+            }
+        )
 }
 
 @Composable
 fun CategoryView(
     categoryName: String,
     categoryNotes: List<FullNote>,
-    notesAmount: Int,
     onCategoryClicked: () -> Unit
 ){
     Column(
@@ -150,9 +166,17 @@ fun CategoryView(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 0.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 0.dp)
         ) {
-            PriorityColumn(categoryNotes)
+            Text(
+                textAlign = TextAlign.Start,
+                modifier = Modifier.weight(1f),
+                text = categoryName,
+                fontSize = 24.sp,
+                color = colorResource(R.color.text_black_composable)
+            )
 
             if (categoryNotes.contains(categoryNotes.find { (it.note?.alarmDateTime ?: 0L) > 0L }))
                 Icon(
@@ -161,31 +185,13 @@ fun CategoryView(
                     tint = colorResource(R.color.yellow)
                 )
 
-            Text(
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f),
-                text = categoryName,
-                fontSize = 24.sp,
-                color = colorResource(R.color.text_black_composable)
+            PriorityColumn(categoryNotes)
+
+            Icon(
+                painter = painterResource(R.drawable.icon_arrow),
+                contentDescription = null,
+                tint = colorResource(R.color.new_product_blue)
             )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End,
-                modifier = Modifier.padding(start = 16.dp)
-            ) {
-                Text(
-                    notesAmount.toString(),
-                    fontSize = 14.sp,
-                    color = colorResource(R.color.new_product_blue)
-                )
-
-                Icon(
-                    painter = painterResource(R.drawable.icon_arrow),
-                    contentDescription = null,
-                    tint = colorResource(R.color.new_product_blue)
-                )
-            }
         }
     }
 }
@@ -196,26 +202,36 @@ fun PriorityColumn(categoryNotes: List<FullNote>){
     var prioritiesCounter = 0
     Column (
         modifier = Modifier
-            .padding(end = 8.dp)
+            .padding(end = 4.dp)
     ){
-        prioritiesList.forEach {priority ->
+        prioritiesList.forEach { priority ->
             if (categoryNotes.contains(categoryNotes.find { it.note?.priority == priority })) {
                 prioritiesCounter++
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .padding(top = if (prioritiesCounter > 1) 8.dp else 0.dp)
-                        .background(
-                            color = when (priority) {
-                                1 -> colorResource(R.color.promo_red)
-                                2 -> colorResource(R.color.yellow)
-                                else -> colorResource(R.color.hint_green)
-                            },
-                            shape = CircleShape
-                        )
-                        .size(24.dp)
+                Row(
+                    modifier = Modifier.padding(top = if (prioritiesCounter > 1) 8.dp else 0.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .background(
+                                color = when (priority) {
+                                    1 -> colorResource(R.color.promo_red)
+                                    2 -> colorResource(R.color.yellow)
+                                    else -> colorResource(R.color.hint_green)
+                                },
+                                shape = CircleShape
+                            )
+                            .size(24.dp)
+                    ) {
 
+                    }
+                    Text(
+                        modifier = Modifier.padding(start = 4.dp),
+                        text = categoryNotes.count{it.note?.priority == priority}.toString(),
+                        fontSize = 14.sp,
+                        color = colorResource(R.color.new_product_blue)
+                    )
                 }
             }
         }

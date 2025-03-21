@@ -25,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,6 +48,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.example.notesjc.viewmodels.DBViewModel
 import com.example.notesjc.R
+import com.example.notesjc.common_views.SwipeToDeleteContainer
 import com.example.notesjc.data.FullNote
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -61,11 +64,18 @@ fun ScreenNotes(
     categoryName: String
 ){
     dbViewModel.getByCategory(categoryName)
-    val categoryNotes = dbViewModel.allNotes.collectAsState().value
+    dbViewModel.updateCurrentCategory(categoryName)
+    var categoryNotes = dbViewModel.allNotes.collectAsState().value
+    categoryNotes = categoryNotes.sortedBy { it.note?.priority }
 
-    var  lifecycle by remember {
+    var deletedNote by rememberSaveable {
+        mutableStateOf(listOf<FullNote>())
+    }
+
+    var  lifecycle by rememberSaveable {
         mutableStateOf(Lifecycle.Event.ON_CREATE)
     }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver{ _, event ->
@@ -95,16 +105,23 @@ fun ScreenNotes(
             )
 
             LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                state = rememberLazyListState(),
             ) {
                 item {
                     categoryNotes.forEachIndexed{ index, note ->
-                        NoteView(
-                            note,
-                        ){
-                            navController.navigate(ScreenAdd(note.note?.noteDateTimeID))
+                        SwipeToDeleteContainer(
+                            item = note,
+                            onDelete = {
+                                deletedNote = listOf(note)
+                            }
+                        ) {
+                            NoteView(note = note)
+                            {
+                                navController.navigate(ScreenAdd(note.note?.noteDateTimeID))
+                            }
                         }
+
                         HorizontalDivider(
                             thickness = 1.dp,
                             color = if (index != categoryNotes.lastIndex)
@@ -124,6 +141,17 @@ fun ScreenNotes(
                 }
             }
         }
+    if (deletedNote.isNotEmpty())
+        DeleteAlertDialog(
+            dialogText = stringResource(R.string.delete_note),
+            onCancelClick = {
+                deletedNote = listOf()
+            },
+            onExitClick = {
+                dbViewModel.delete(deletedNote)
+                deletedNote = listOf()
+            }
+        )
 }
 
 @Composable
@@ -142,14 +170,26 @@ fun NoteView(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 0.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 0.dp)
         ) {
+            Text(
+                textAlign = TextAlign.Start,
+                modifier = Modifier.weight(1f),
+                text = note.note?.description ?: "",
+                fontSize = 24.sp,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                color = colorResource(R.color.text_black_composable)
+            )
+
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .padding(end = 8.dp)
+                    .padding(end = 4.dp)
                     .background(
-                        color = when(note.note?.priority){
+                        color = when (note.note?.priority) {
                             1 -> colorResource(R.color.promo_red)
                             2 -> colorResource(R.color.yellow)
                             else -> colorResource(R.color.hint_green)
@@ -168,22 +208,31 @@ fun NoteView(
                     tint = colorResource(R.color.yellow)
                 )
 
-            Text(
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f),
-                text = note.note?.description ?: "",
-                fontSize = 24.sp,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                color = colorResource(R.color.text_black_composable)
-            )
-
             Icon(
-                modifier = Modifier.padding(start = 16.dp),
                 painter = painterResource(R.drawable.icon_arrow),
                 contentDescription = null,
                 tint = colorResource(R.color.new_product_blue)
             )
         }
     }
+}
+
+@Composable
+fun DeleteAlertDialog(
+    dialogText: String,
+    onCancelClick: () -> Unit,
+    onExitClick: () -> Unit
+){
+    DialogView(
+        dialogTitle = stringResource(R.string.delete_title),
+        dialogText = dialogText,
+        cancelBtnText = stringResource(R.string.cancel),
+        confirmBtnTExt = stringResource(R.string.delete),
+        onCancelClick = {
+            onCancelClick()
+        },
+        onConfirmClick = {
+            onExitClick()
+        }
+    )
 }

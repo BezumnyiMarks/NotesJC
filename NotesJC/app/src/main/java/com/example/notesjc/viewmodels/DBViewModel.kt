@@ -1,5 +1,6 @@
 package com.example.notesjc.viewmodels
 
+import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.provider.ContactsContract.CommonDataKinds.Im
@@ -13,6 +14,7 @@ import com.example.notesjc.data.Image
 import com.example.notesjc.data.Note
 import com.example.notesjc.database.AppDatabase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,10 +25,13 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DBViewModel @Inject constructor(
-    private val appDatabase: AppDatabase
+    private val appDatabase: AppDatabase,
+    @ApplicationContext
+    private val context: Context
 ): ViewModel() {
     val allNotes = MutableStateFlow<List<FullNote>>(listOf())
     val mediaStoreImagesUri = MutableStateFlow<List<Uri>>(listOf())
+    val chosenImagesUri = MutableStateFlow<List<Uri>>(listOf())
     val currentNote = MutableStateFlow(FullNote())
     val onNewIntentGetExtra = MutableStateFlow(0L)
 
@@ -40,8 +45,13 @@ class DBViewModel @Inject constructor(
                 Calendar.getInstance().timeInMillis
             else currentNote.value.note?.noteDateTimeID ?: 0L
 
+            val category = if (currentNote.value.note?.category.isNullOrEmpty())
+                context.getString(R.string.no_category)
+            else currentNote.value.note?.category
+
             currentNote.value.note = currentNote.value.note?.copy(
                 noteDateTimeID = dateTimeMillis,
+                category = category,
                 relevant = relevant
             )
             appDatabase.notesDao().insertNote(currentNote.value.note ?: Note())
@@ -147,5 +157,21 @@ class DBViewModel @Inject constructor(
 
     fun clearCurrentNote(){
         currentNote.value = FullNote()
+    }
+
+    fun addChosenImage(imageUri: Uri){
+        val chosenImages = chosenImagesUri.value.toMutableList()
+        chosenImages.add(imageUri)
+        chosenImagesUri.value = chosenImages
+    }
+
+    fun removeChosenImage(imageUri: Uri){
+        val chosenImages = chosenImagesUri.value.toMutableList()
+        chosenImages.remove(imageUri)
+        chosenImagesUri.value = chosenImages
+    }
+
+    fun clearChosenImagesList(){
+        chosenImagesUri.value = listOf()
     }
 }

@@ -1,20 +1,12 @@
 package com.example.notesjc.service
 
 import android.annotation.SuppressLint
-import android.app.Activity
-import android.app.Application
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
-import android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
-import android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-import android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
-import android.graphics.BitmapFactory
-import android.os.Bundle
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import com.example.notesjc.MainActivity
 import com.example.notesjc.NotificationPlayer
 import com.example.notesjc.R
@@ -61,45 +53,15 @@ class PlayerService: Service() {
 
     @SuppressLint("MissingPermission")
     private fun startNotification(note: Note): Notification {
-        this.application.registerActivityLifecycleCallbacks(object: Application.ActivityLifecycleCallbacks{
-            override fun onActivityCreated(p0: Activity, p1: Bundle?) {
-
-            }
-
-            override fun onActivityStarted(p0: Activity) {
-
-            }
-
-            override fun onActivityResumed(p0: Activity) {
-
-            }
-
-            override fun onActivityPaused(p0: Activity) {
-                //p0.finish()
-            }
-
-            override fun onActivityStopped(p0: Activity) {
-
-            }
-
-            override fun onActivitySaveInstanceState(p0: Activity, p1: Bundle) {
-
-            }
-
-            override fun onActivityDestroyed(p0: Activity) {
-
-            }
-
-        })
         val i = Intent(this, MainActivity::class.java).apply {
-            flags = FLAG_ACTIVITY_REORDER_TO_FRONT
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("Database_item", note)
         }
         val pendingIntent = PendingIntent.getActivity(
             this,
             1,
             i,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_CANCEL_CURRENT
         )
 
         val builder = NotificationCompat.Builder(this, "work_list")

@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -46,7 +47,8 @@ import com.example.notesjc.screens.ScreenAdd
 import com.example.notesjc.screens.ScreenAlarm
 import com.example.notesjc.screens.ScreenArchive
 import com.example.notesjc.screens.ScreenCategories
-import com.example.notesjc.screens.ScreenChooseImage
+import com.example.notesjc.screens.ScreenChooseImages
+import com.example.notesjc.screens.ScreenChooseImagesFullScreen
 import com.example.notesjc.screens.ScreenNotes
 import com.example.notesjc.screens.ScreenSelectedImagesFullScreen
 import kotlinx.coroutines.delay
@@ -83,15 +85,31 @@ fun Navigation(
 
         composable<ScreenAdd>{
             val args = it.toRoute<ScreenAdd>()
-            ScreenAdd(dbViewModel, navController, permissionsManager, context, scheduler, args.currentNoteDateTime)
+            ScreenAdd(
+                dbViewModel,
+                navController,
+                permissionsManager,
+                context,
+                scheduler,
+                args.currentNoteDateTime,
+            )
         }
 
         composable<ScreenArchive>{
             ScreenArchive()
         }
 
-        composable<ScreenChooseImage>{
-            ScreenChooseImage(dbViewModel, navController)
+        composable<ScreenChooseImages>{
+            ScreenChooseImages(dbViewModel, navController)
+        }
+
+        composable<ScreenChooseImagesFullScreen>{
+            val args = it.toRoute<ScreenChooseImagesFullScreen>()
+            ScreenChooseImagesFullScreen(
+                args.currentPosition,
+                dbViewModel,
+                navController
+            )
         }
 
         composable<ScreenSelectedImagesFullScreen>{
@@ -180,11 +198,11 @@ fun BottomNavMenu(
                                     },
                                     onClick = {
                                         when(index){
-                                            0 -> navController.navigate(ScreenCategories)
-                                            1 -> {
-                                                dbViewModel.currentNote.value = FullNote()
-                                                navController.navigate(ScreenAdd(null))
+                                            0 -> navController.navigate(ScreenCategories){
+                                                popUpTo(navController.graph.findStartDestination().id)
+                                                launchSingleTop = true
                                             }
+                                            1 -> navController.navigate(ScreenAdd(null))
                                             2 -> navController.navigate(ScreenArchive)
                                         }
                                     },

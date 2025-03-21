@@ -5,23 +5,29 @@ import android.os.Build
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
+import androidx.annotation.Size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -37,6 +43,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -49,6 +56,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -60,6 +68,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -74,13 +83,15 @@ import com.example.notesjc.R
 import com.example.notesjc.alarm_scheduler.AndroidAlarmScheduler
 import com.example.notesjc.common_views.DateTimePicker
 import com.example.notesjc.common_views.PriorityChangeBottomSheet
+import com.example.notesjc.common_views.keyboardBottomAsState
+import com.example.notesjc.common_views.keyboardTopAsState
 import com.example.notesjc.data.FullNote
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class ScreenAdd(
-    val currentNoteDateTime: Long?
+    val currentNoteDateTime: Long?,
 )
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -91,7 +102,7 @@ fun ScreenAdd(
     permissionsManager: PermissionsManager,
     context: Context,
     scheduler: AndroidAlarmScheduler,
-    currentNoteDateTime: Long?
+    currentNoteDateTime: Long?,
 ){
     var  lifecycle by remember {
         mutableStateOf(Lifecycle.Event.ON_CREATE)
@@ -106,8 +117,6 @@ fun ScreenAdd(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-    if (lifecycle == Lifecycle.Event.ON_DESTROY)
-        dbViewModel.clearCurrentNote()
 
     val currentNote = dbViewModel.currentNote.collectAsStateWithLifecycle().value
     if (currentNoteDateTime != null && currentNote == FullNote()){
@@ -137,44 +146,56 @@ fun ScreenAdd(
         var saveConfirmDialogOpen by rememberSaveable {
             mutableStateOf(false)
         }
+        val keyboardBottom by keyboardBottomAsState()
+        Log.d("KEY", keyboardBottom.toString())
+        Log.d("screen",LocalConfiguration.current.screenHeightDp.dp.toString())
 
         Column(
             modifier = Modifier
+                .imePadding()
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
-            DataEditView(
-                dbViewModel,
-                category,
-                description,
-                navController,
-                onCategoryChange = { categoryText ->
-                    dbViewModel.updateCurrentCategory(categoryText)
-                    category = categoryText
-                },
-                onNoteChange = { descriptionText ->
-                    dbViewModel.updateCurrentDescription(descriptionText)
-                    description = descriptionText
-                }
-            )
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f)
+            ){
+                DataEditView(
+                    dbViewModel,
+                    category,
+                    description,
+                    navController,
+                    onCategoryChange = { categoryText ->
+                        dbViewModel.updateCurrentCategory(categoryText)
+                        category = categoryText
+                    },
+                    onNoteChange = { descriptionText ->
+                        dbViewModel.updateCurrentDescription(descriptionText)
+                        description = descriptionText
+                    }
+                )
+            }
 
-            BottomPanelView(
-                dbViewModel = dbViewModel,
-                onRemindClick = {
-                    dateTimePickerOpen = true
-                },
-                onImageClick = {
-                    if (permissionsManager.checkPermissions())
-                        getImages(context.contentResolver, dbViewModel)
-                    navController.navigate(ScreenChooseImage)
-                },
-                onPriorityClick = {
-                    bottomSheetOpen = true
-                },
-                onSaveClick = {
-                    saveConfirmDialogOpen = true
-                }
-            )
+            Box(
+                modifier = Modifier.fillMaxWidth()
+            ){
+                BottomPanelView(
+                    dbViewModel = dbViewModel,
+                    onRemindClick = {
+                        dateTimePickerOpen = true
+                    },
+                    onImageClick = {
+                        if (permissionsManager.checkPermissions())
+                            getImages(context.contentResolver, dbViewModel)
+                        navController.navigate(ScreenChooseImages)
+                    },
+                    onPriorityClick = {
+                        bottomSheetOpen = true
+                    },
+                    onSaveClick = {
+                        saveConfirmDialogOpen = true
+                    }
+                )
+            }
         }
 
         if (dateTimePickerOpen)
@@ -195,21 +216,6 @@ fun ScreenAdd(
                 bottomSheetOpen = false
             }
 
-        if (saveAlertDialogOpen)
-            SaveAlertDialog(
-                onCancelClick = {
-                    saveAlertDialogOpen = false
-                },
-                onExitClick = {
-                    navController.navigate(ScreenCategories){
-                        popUpTo(navController.graph.findStartDestination().id)
-                        launchSingleTop = true
-                    }
-                    dbViewModel.clearIntentExtra()
-                    saveAlertDialogOpen = false
-                }
-            )
-
         if (saveConfirmDialogOpen)
             SaveConfirmDialog(
                 onCancelClick = {
@@ -229,6 +235,22 @@ fun ScreenAdd(
                     saveConfirmDialogOpen = false
                 }
             )
+
+        if (saveAlertDialogOpen)
+            SaveAlertDialog(
+                onCancelClick = {
+                    saveAlertDialogOpen = false
+                },
+                onExitClick = {
+                    navController.navigate(ScreenCategories){
+                        popUpTo(navController.graph.findStartDestination().id)
+                        launchSingleTop = true
+                    }
+                    dbViewModel.clearIntentExtra()
+                    dbViewModel.clearCurrentNote()
+                    saveAlertDialogOpen = false
+                }
+            )
         BackHandler {
             saveAlertDialogOpen = true
         }
@@ -246,6 +268,7 @@ fun BottomPanelView(
     val currentNote = dbViewModel.currentNote.collectAsState().value
     Row(
         modifier = Modifier
+            .height(100.dp)
             .padding(top = 16.dp),
     ) {
         if (currentNote.note?.alarmDateTime == null || currentNote.note?.alarmDateTime == 0L)
@@ -378,9 +401,10 @@ fun DataEditView(
     onCategoryChange: (String) -> Unit,
     onNoteChange: (String) -> Unit,
 ){
-    val currentNote = dbViewModel.currentNote.collectAsState().value
+    val currentNote = dbViewModel.currentNote.collectAsStateWithLifecycle().value
     Column(
-        modifier = Modifier.requiredHeightIn (max = LocalConfiguration.current.screenHeightDp.dp - 120.dp)
+        modifier = Modifier
+            .fillMaxSize()
     ) {
         TextDataField(
             modifier = Modifier
@@ -442,7 +466,7 @@ fun SaveAlertDialog(
     onCancelClick: () -> Unit,
     onExitClick: () -> Unit
 ){
-    SaveDialog(
+    DialogView(
         dialogTitle = stringResource(R.string.alert_title),
         dialogText = stringResource(R.string.exit_confirm_dialog_text),
         cancelBtnText = stringResource(R.string.cancel),
@@ -461,7 +485,7 @@ fun SaveConfirmDialog(
     onCancelClick: () -> Unit,
     onSaveClick: () -> Unit
 ){
-    SaveDialog(
+    DialogView(
         dialogTitle = stringResource(R.string.save_title),
         dialogText = stringResource(R.string.save_confirm_dialog_text),
         cancelBtnText = stringResource(R.string.cancel),
@@ -476,7 +500,7 @@ fun SaveConfirmDialog(
 }
 
 @Composable
-fun SaveDialog(
+fun DialogView(
     dialogTitle: String,
     dialogText: String,
     cancelBtnText: String,
@@ -495,8 +519,7 @@ fun SaveDialog(
                     color = colorResource(R.color.white),
                     shape = RoundedCornerShape(12.dp)
                 )
-                .fillMaxWidth()
-                .height(200.dp),
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ){

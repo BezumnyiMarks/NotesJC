@@ -21,4 +21,9 @@
     <string name="save_confirm_dialog_text">Подтвердить сохранение и выйти?</string>
     <string name="exit_confirm_dialog_text">Запись не была сохранена. Выйти без сохранения?</string>
     <string name="notification_title">Так, похоже, все запланированные дела не разгребутся сами собой...</string>
+    <string name="no_category">Без категории</string>
+    <string name="delete_title">Удаление</string>
+    <string name="delete">Удалить</string>
+    <string name="delete_note">Запись будет удалена</string>
+    <string name="delete_category">Категория будет удалена</string>
 </resources>

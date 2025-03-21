@@ -8,10 +8,17 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
@@ -40,19 +47,26 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         permissionsManager.checkPermissions()
         observeIntent()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent{
+            //enableEdgeToEdge()
             val scheduler = AndroidAlarmScheduler(this)
             val navController = rememberNavController()
             val noteDateTimeID = dbViewModel.onNewIntentGetExtra.collectAsStateWithLifecycle().value
-            BottomNavMenu(
-                navController,
-                dbViewModel,
-                permissionsManager,
-                this,
-                scheduler,
-                player,
-                noteDateTimeID
-            )
+
+            Column(
+                modifier = Modifier.statusBarsPadding()
+            ) {
+                BottomNavMenu(
+                    navController,
+                    dbViewModel,
+                    permissionsManager,
+                    this@MainActivity,
+                    scheduler,
+                    player,
+                    noteDateTimeID
+                )
+            }
         }
     }
 
