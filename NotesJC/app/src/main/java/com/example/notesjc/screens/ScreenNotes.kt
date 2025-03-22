@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -108,36 +109,38 @@ fun ScreenNotes(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                item {
-                    categoryNotes.forEachIndexed{ index, note ->
+                items(
+                    items = categoryNotes,
+                    key = {note -> note.note?.noteDateTimeID ?: 0},
+                ){ note ->
                         SwipeToDeleteContainer(
                             item = note,
-                            onDelete = {
-                                deletedNote = listOf(note)
+                            onDelete = { deleted ->
+                                deletedNote = listOf(deleted)
                             }
                         ) {
                             NoteView(note = note)
                             {
+                                dbViewModel.clearCurrentNote()
                                 navController.navigate(ScreenAdd(note.note?.noteDateTimeID))
                             }
                         }
 
                         HorizontalDivider(
                             thickness = 1.dp,
-                            color = if (index != categoryNotes.lastIndex)
+                            color = if (note != categoryNotes[categoryNotes.lastIndex])
                                 colorResource(R.color.divider)
                             else Color.Transparent,
                             modifier = Modifier.padding(vertical = 16.dp)
                         )
-                    }
 
-                    SetImage(
-                        null,
-                        painterResource(id = R.drawable.app_poster2),
-                        Modifier,
-                        RoundedCornerShape(0),
-                        ContentScale.Crop
-                    )
+                   // SetImage(
+                   //     null,
+                   //     painterResource(id = R.drawable.app_poster2),
+                   //     Modifier,
+                   //     RoundedCornerShape(0),
+                   //     ContentScale.Crop
+                   // )
                 }
             }
         }
@@ -147,7 +150,7 @@ fun ScreenNotes(
             onCancelClick = {
                 deletedNote = listOf()
             },
-            onExitClick = {
+            onDeleteClick = {
                 dbViewModel.delete(deletedNote)
                 deletedNote = listOf()
             }
@@ -221,7 +224,7 @@ fun NoteView(
 fun DeleteAlertDialog(
     dialogText: String,
     onCancelClick: () -> Unit,
-    onExitClick: () -> Unit
+    onDeleteClick: () -> Unit
 ){
     DialogView(
         dialogTitle = stringResource(R.string.delete_title),
@@ -232,7 +235,7 @@ fun DeleteAlertDialog(
             onCancelClick()
         },
         onConfirmClick = {
-            onExitClick()
+            onDeleteClick()
         }
     )
 }

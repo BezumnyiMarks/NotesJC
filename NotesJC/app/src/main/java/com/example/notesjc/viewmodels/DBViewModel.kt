@@ -99,15 +99,15 @@ class DBViewModel @Inject constructor(
     }
 
     fun delete(fullNotesList: List<FullNote>){
-        val notes = mutableListOf<Note>()
-        val images = mutableListOf<Image>()
-        fullNotesList.forEach { fullNote ->
-            notes.add(fullNote.note ?: Note())
-            fullNote.images?.forEach { image ->
-                images.add(image)
-            }
-        }
         viewModelScope.launch {
+            val notes = mutableListOf<Note>()
+            val images = mutableListOf<Image>()
+            fullNotesList.forEach { fullNote ->
+                notes.add(fullNote.note ?: Note())
+                fullNote.images?.forEach { image ->
+                    images.add(image)
+                }
+            }
             appDatabase.notesDao().deleteNotes(notes)
             appDatabase.notesDao().deleteImages(images)
         }

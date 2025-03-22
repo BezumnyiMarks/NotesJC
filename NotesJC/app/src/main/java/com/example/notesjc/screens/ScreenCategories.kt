@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -50,6 +52,7 @@ import com.example.notesjc.viewmodels.DBViewModel
 import com.example.notesjc.R
 import com.example.notesjc.common_views.SwipeToDeleteContainer
 import com.example.notesjc.data.FullNote
+import com.example.notesjc.data.Note
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -88,6 +91,13 @@ fun ScreenCategories(dbViewModel: DBViewModel, navController: NavController){
                 if (!allCategoriesNames.contains(it.note?.category ?: ""))
                     allCategoriesNames.add(it.note?.category ?: "")
             }
+        val categoryNotes = mutableMapOf<String,  MutableList<FullNote>>()
+        allCategoriesNames.forEach { categoryName ->
+            categoryNotes[categoryName] = mutableListOf()
+        }
+        allNotes.forEach { note ->
+            categoryNotes[note.note?.category]?.add(note)
+        }
 
         LazyColumn(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -95,58 +105,56 @@ fun ScreenCategories(dbViewModel: DBViewModel, navController: NavController){
                 .padding(16.dp)
                 .fillMaxWidth()
         ) {
-            item {
-                allCategoriesNames.forEachIndexed { index, categoryName ->
-                    val categoryNotes = mutableListOf<FullNote>()
-                    allNotes.forEach {
-                        if (it.note?.category == categoryName)
-                            categoryNotes.add(it)
-                    }
-
-                    SwipeToDeleteContainer(
-                        item = categoryNotes,
-                        onDelete = {
-                            deletedCategory = categoryNotes
+            items(
+                items = allCategoriesNames,
+                key = {categoryName -> categoryName},
+            ){ categoryName ->
+                SwipeToDeleteContainer(
+                    item = categoryNotes[categoryName],
+                    onDelete = { deleted ->
+                        if (deleted != null) {
+                            deletedCategory = deleted
                         }
+                    }
+                ) {
+                    CategoryView(
+                        categoryName,
+                        categoryNotes.getValue(categoryName),
                     ) {
-                        CategoryView(
-                            categoryName,
-                            categoryNotes,
-                        ) {
-                            navController.navigate(ScreenNotes(categoryName))
-                        }
+                        navController.navigate(ScreenNotes(categoryName))
                     }
-
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = if (index != allCategoriesNames.lastIndex)
-                            colorResource(R.color.divider)
-                        else Color.Transparent,
-                        modifier = Modifier.padding(vertical = 16.dp)
-                    )
                 }
 
-                SetImage(
-                    null,
-                    painterResource(id = R.drawable.app_poster),
-                    Modifier,
-                    RoundedCornerShape(0),
-                    ContentScale.Crop
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = if (categoryName != allCategoriesNames.get(allCategoriesNames.lastIndex))
+                        colorResource(R.color.divider)
+                    else Color.Transparent,
+                    modifier = Modifier.padding(vertical = 16.dp)
                 )
             }
         }
+        //SetImage(
+        //    null,
+        //    painterResource(id = R.drawable.app_poster),
+        //    Modifier,
+        //    RoundedCornerShape(0),
+        //    ContentScale.Crop
+        //)
+        if (deletedCategory.isNotEmpty())
+            DeleteAlertDialog(
+                dialogText = stringResource(R.string.delete_category),
+                onCancelClick = {
+                    deletedCategory = listOf()
+                },
+                onDeleteClick = {
+                    Log.d("CATEGORRRYDEL", deletedCategory.toString())
+                    dbViewModel.delete(deletedCategory)
+                    categoryNotes.remove(deletedCategory[0].note?.category)
+                    deletedCategory = listOf()
+                }
+            )
     }
-    if (deletedCategory.isNotEmpty())
-        DeleteAlertDialog(
-            dialogText = stringResource(R.string.delete_category),
-            onCancelClick = {
-                deletedCategory = listOf()
-            },
-            onExitClick = {
-                dbViewModel.delete(deletedCategory)
-                deletedCategory = listOf()
-            }
-        )
 }
 
 @Composable

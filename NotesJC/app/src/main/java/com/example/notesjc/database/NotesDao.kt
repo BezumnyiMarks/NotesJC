@@ -26,7 +26,7 @@ interface NotesDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertImage(image: Image)
 
-    @Delete()
+    @Delete
     suspend fun deleteNotes(note: List<Note>)
 
     @Delete

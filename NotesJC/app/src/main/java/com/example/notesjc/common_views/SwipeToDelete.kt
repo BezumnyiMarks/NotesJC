@@ -69,14 +69,14 @@ fun <T> SwipeToDeleteContainer(
    //         shrinkTowards = Alignment.Top
    //     ) + fadeOut()
    // ) {
-        SwipeToDismissBox(
-            state = state,
-            backgroundContent = {
-                DeleteBackground(swipeDismissState = state)
-            },
-            content = { content(item) },
-            enableDismissFromEndToStart = true
-        )
+    SwipeToDismissBox(
+        state = state,
+        backgroundContent = {
+            DeleteBackground(swipeDismissState = state)
+        },
+        content = { content(item) },
+        enableDismissFromEndToStart = true
+    )
     //}
 }
 

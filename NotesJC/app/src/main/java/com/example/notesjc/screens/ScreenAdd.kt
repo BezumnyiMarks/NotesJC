@@ -119,7 +119,7 @@ fun ScreenAdd(
     }
 
     val currentNote = dbViewModel.currentNote.collectAsStateWithLifecycle().value
-    if (currentNoteDateTime != null && currentNote == FullNote()){
+    if (currentNoteDateTime != null && currentNote.note?.noteDateTimeID == null){
         LaunchedEffect(Unit) {
             dbViewModel.getByDateTime(currentNoteDateTime)
         }
@@ -146,9 +146,6 @@ fun ScreenAdd(
         var saveConfirmDialogOpen by rememberSaveable {
             mutableStateOf(false)
         }
-        val keyboardBottom by keyboardBottomAsState()
-        Log.d("KEY", keyboardBottom.toString())
-        Log.d("screen",LocalConfiguration.current.screenHeightDp.dp.toString())
 
         Column(
             modifier = Modifier
