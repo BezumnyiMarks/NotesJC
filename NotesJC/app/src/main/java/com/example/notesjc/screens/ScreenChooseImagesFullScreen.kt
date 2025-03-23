@@ -63,6 +63,7 @@ fun ScreenChooseImagesFullScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Box(
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.TopEnd,
             ) {
                 SetImage(

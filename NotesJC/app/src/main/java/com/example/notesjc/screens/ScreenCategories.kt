@@ -60,7 +60,6 @@ object ScreenCategories
 
 @Composable
 fun ScreenCategories(dbViewModel: DBViewModel, navController: NavController){
-    dbViewModel.clearCurrentNote()
     dbViewModel.getAll()
     var allNotes = dbViewModel.allNotes.collectAsState().value
     val allCategoriesNames = mutableListOf<String>()
@@ -85,18 +84,18 @@ fun ScreenCategories(dbViewModel: DBViewModel, navController: NavController){
     }
 
     if (lifecycle == Lifecycle.Event.ON_RESUME) {
-        allNotes = allNotes.sortedBy { it.note?.priority }
+        allNotes = allNotes.sortedBy { it.note.priority }
         if (allNotes.isNotEmpty())
             allNotes.forEach {
-                if (!allCategoriesNames.contains(it.note?.category ?: ""))
-                    allCategoriesNames.add(it.note?.category ?: "")
+                if (!allCategoriesNames.contains(it.note.category))
+                    allCategoriesNames.add(it.note.category)
             }
         val categoryNotes = mutableMapOf<String,  MutableList<FullNote>>()
         allCategoriesNames.forEach { categoryName ->
             categoryNotes[categoryName] = mutableListOf()
         }
         allNotes.forEach { note ->
-            categoryNotes[note.note?.category]?.add(note)
+            categoryNotes[note.note.category]?.add(note)
         }
 
         LazyColumn(

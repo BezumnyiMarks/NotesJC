@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializer
 
 data class FullNote(
     @Embedded
-    var note: Note ?= Note(),
+    var note: Note = Note(),
 
     @Relation(entity = Image::class, parentColumn = "noteDateTimeID", entityColumn = "noteDateTimeID")
     var images: List<Image> ?= listOf(),
@@ -21,17 +21,17 @@ data class FullNote(
 data class Note(
     @PrimaryKey
     @ColumnInfo(name = "noteDateTimeID")
-    val noteDateTimeID: Long ?= null,
+    val noteDateTimeID: Long = 0,
     @ColumnInfo(name = "category")
-    val category: String ?= null,
+    val category: String = "",
     @ColumnInfo(name = "description")
-    val description: String ?= null,
+    val description: String = "",
     @ColumnInfo(name = "alarmDateTime")
-    val alarmDateTime: Long ?= null,
+    val alarmDateTime: Long = 0L,
     @ColumnInfo(name = "priority")
-    val priority: Int ?= 3,
+    val priority: Int = 3,
     @ColumnInfo(name = "relevant")
-    val relevant: Boolean ?= null
+    val relevant: Boolean = true
 ): java.io.Serializable
 
 

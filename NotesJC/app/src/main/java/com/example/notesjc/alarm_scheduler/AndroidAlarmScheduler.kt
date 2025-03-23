@@ -21,16 +21,17 @@ class AndroidAlarmScheduler(
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             putExtra("Database_item", note)
         }
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            note.alarmDateTime ?: 0,
-            PendingIntent.getBroadcast(
-                context,
-                note.hashCode(),
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        if (note.alarmDateTime != 0L)
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                note.alarmDateTime,
+                PendingIntent.getBroadcast(
+                    context,
+                    note.hashCode(),
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
             )
-        )
     }
 
     fun cancel(note: Note) {

@@ -52,8 +52,25 @@ class MainActivity : ComponentActivity() {
             //enableEdgeToEdge()
             val scheduler = AndroidAlarmScheduler(this)
             val navController = rememberNavController()
-            val noteDateTimeID = dbViewModel.onNewIntentGetExtra.collectAsStateWithLifecycle().value
+            LaunchedEffect(Unit) {
+                dbViewModel.observeScreenAddState().collect{
+                    when(it){
+                        DBViewModel.ScreenAddState.AddNewNoteNewCategory -> {}
 
+                        is DBViewModel.ScreenAddState.AddNewNoteSelectedCategory -> {}
+
+                        is DBViewModel.ScreenAddState.EditSelectedNote -> {}
+
+                        is DBViewModel.ScreenAddState.EditAlarmTriggeredNote -> {
+                            if (it.noteDateTimeID != 0L)
+                                navController.navigate(ScreenAlarm(it.noteDateTimeID))
+                            intent.putExtra("Database_item", Note())
+                        }
+
+                        is DBViewModel.ScreenAddState.Edit -> {}
+                    }
+                }
+            }
             Column(
                 modifier = Modifier.statusBarsPadding()
             ) {
@@ -64,7 +81,6 @@ class MainActivity : ComponentActivity() {
                     this@MainActivity,
                     scheduler,
                     player,
-                    noteDateTimeID
                 )
             }
         }
@@ -72,7 +88,9 @@ class MainActivity : ComponentActivity() {
 
     private fun observeIntent() {
         val item = intent?.getSerializableExtra("Database_item") as Note?
-        dbViewModel.onNewIntentGetExtra.value = item?.noteDateTimeID ?: 0L
+        if (item?.noteDateTimeID != 0L && item?.noteDateTimeID != null)
+            dbViewModel.setEditAlarmTriggeredNoteState(item.noteDateTimeID)
+        else dbViewModel.setAddNewNoteNewCategoryState()
     }
 }
 

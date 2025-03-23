@@ -65,7 +65,6 @@ fun ScreenAlarm(
 ){
     stopPlayerService(context)
 
-    Log.d("INTENT", "onNewIntentGetExtra.toString()")
     if (alarmNoteDateTime != null)
         dbViewModel.getByDateTime(alarmNoteDateTime)
     val currentNote = dbViewModel.currentNote.collectAsStateWithLifecycle().value
@@ -141,10 +140,11 @@ fun ScreenAlarm(
             ),
             onClick = {
                 player?.player?.pause()
-                scheduler.cancel(currentNote.note ?: Note())
-                dbViewModel.updateCurrentAlarmDateTime(dateTimeMillis = null)
+                scheduler.cancel(currentNote.note)
+                dbViewModel.updateCurrentAlarmDateTime(dateTimeMillis = 0L)
                 dbViewModel.saveNote(true)
-                navController.navigate(ScreenAdd(currentNoteDateTime = alarmNoteDateTime)){
+                dbViewModel.setEditAlarmTriggeredNoteState(alarmNoteDateTime ?: 0L)
+                navController.navigate(ScreenAdd){
                     popUpTo(navController.graph.findStartDestination().id)
                     launchSingleTop = true
                 }

@@ -86,13 +86,14 @@ import com.example.notesjc.common_views.PriorityChangeBottomSheet
 import com.example.notesjc.common_views.keyboardBottomAsState
 import com.example.notesjc.common_views.keyboardTopAsState
 import com.example.notesjc.data.FullNote
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.count
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ScreenAdd(
-    val currentNoteDateTime: Long?,
-)
+object ScreenAdd
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -102,7 +103,6 @@ fun ScreenAdd(
     permissionsManager: PermissionsManager,
     context: Context,
     scheduler: AndroidAlarmScheduler,
-    currentNoteDateTime: Long?,
 ){
     var  lifecycle by remember {
         mutableStateOf(Lifecycle.Event.ON_CREATE)
@@ -117,22 +117,16 @@ fun ScreenAdd(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-
-    val currentNote = dbViewModel.currentNote.collectAsStateWithLifecycle().value
-    if (currentNoteDateTime != null && currentNote.note?.noteDateTimeID == null){
-        LaunchedEffect(Unit) {
-            dbViewModel.getByDateTime(currentNoteDateTime)
-        }
-    }
-
-    Log.d("ADD", currentNote.toString())
+    ObserveScreenStates(dbViewModel)
 
     if (lifecycle == Lifecycle.Event.ON_RESUME){
+        val currentNote = dbViewModel.currentNote.collectAsStateWithLifecycle().value
+        dbViewModel.setEditState()
         var category by rememberSaveable {
-            mutableStateOf(currentNote.note?.category ?: "")
+            mutableStateOf(currentNote.note.category)
         }
         var description by rememberSaveable {
-            mutableStateOf(currentNote.note?.description ?: "")
+            mutableStateOf(currentNote.note.description)
         }
         var dateTimePickerOpen by rememberSaveable {
             mutableStateOf(false)
@@ -183,6 +177,7 @@ fun ScreenAdd(
                     onImageClick = {
                         if (permissionsManager.checkPermissions())
                             getImages(context.contentResolver, dbViewModel)
+                        else permissionsManager.checkPermissions()
                         navController.navigate(ScreenChooseImages)
                     },
                     onPriorityClick = {
@@ -228,7 +223,6 @@ fun ScreenAdd(
                         popUpTo(navController.graph.findStartDestination().id)
                         launchSingleTop = true
                     }
-                    dbViewModel.clearIntentExtra()
                     saveConfirmDialogOpen = false
                 }
             )
@@ -243,8 +237,7 @@ fun ScreenAdd(
                         popUpTo(navController.graph.findStartDestination().id)
                         launchSingleTop = true
                     }
-                    dbViewModel.clearIntentExtra()
-                    dbViewModel.clearCurrentNote()
+                    dbViewModel.setAddNewNoteNewCategoryState()
                     saveAlertDialogOpen = false
                 }
             )
@@ -300,7 +293,7 @@ fun BottomPanelView(
                     RemoveView(
                         paddingEnd = 9.dp
                     ) {
-                        dbViewModel.updateCurrentAlarmDateTime(null)
+                        dbViewModel.updateCurrentAlarmDateTime(0L)
                     }
                 }
             }
@@ -626,6 +619,27 @@ fun RemoveView(
             contentDescription = "",
             tint = colorResource(R.color.promo_red)
         )
+    }
+}
+
+@Composable
+private fun ObserveScreenStates(
+    dbViewModel: DBViewModel
+){
+    LaunchedEffect(Unit) {
+        dbViewModel.observeScreenAddState().collect {
+            when(it){
+                DBViewModel.ScreenAddState.AddNewNoteNewCategory -> dbViewModel.clearCurrentNote()
+
+                is DBViewModel.ScreenAddState.AddNewNoteSelectedCategory -> dbViewModel.updateCurrentCategory(it.category)
+
+                is DBViewModel.ScreenAddState.EditSelectedNote -> dbViewModel.getByDateTime(it.noteDateTimeID)
+
+                is DBViewModel.ScreenAddState.EditAlarmTriggeredNote -> dbViewModel.getByDateTime(it.noteDateTimeID)
+
+                is DBViewModel.ScreenAddState.Edit -> {}
+            }
+        }
     }
 }
 

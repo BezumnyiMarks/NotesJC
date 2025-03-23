@@ -1,6 +1,7 @@
 package com.example.notesjc.screens
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -65,9 +66,9 @@ fun ScreenNotes(
     categoryName: String
 ){
     dbViewModel.getByCategory(categoryName)
-    dbViewModel.updateCurrentCategory(categoryName)
+
     var categoryNotes = dbViewModel.allNotes.collectAsState().value
-    categoryNotes = categoryNotes.sortedBy { it.note?.priority }
+    categoryNotes = categoryNotes.sortedBy { it.note.priority }
 
     var deletedNote by rememberSaveable {
         mutableStateOf(listOf<FullNote>())
@@ -88,7 +89,8 @@ fun ScreenNotes(
         }
     }
 
-    if (lifecycle == Lifecycle.Event.ON_RESUME)
+    if (lifecycle == Lifecycle.Event.ON_RESUME) {
+        dbViewModel.setAddNewNoteSelectedCategoryState(categoryName)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -111,39 +113,40 @@ fun ScreenNotes(
             ) {
                 items(
                     items = categoryNotes,
-                    key = {note -> note.note?.noteDateTimeID ?: 0},
-                ){ note ->
-                        SwipeToDeleteContainer(
-                            item = note,
-                            onDelete = { deleted ->
-                                deletedNote = listOf(deleted)
-                            }
-                        ) {
-                            NoteView(note = note)
-                            {
-                                dbViewModel.clearCurrentNote()
-                                navController.navigate(ScreenAdd(note.note?.noteDateTimeID))
-                            }
+                    key = { note -> note.note.noteDateTimeID ?: 0 },
+                ) { note ->
+                    SwipeToDeleteContainer(
+                        item = note,
+                        onDelete = { deleted ->
+                            deletedNote = listOf(deleted)
                         }
+                    ) {
+                        NoteView(note = note)
+                        {
+                            dbViewModel.setEditSelectedNoteState(note.note.noteDateTimeID)
+                            navController.navigate(ScreenAdd)
+                        }
+                    }
 
-                        HorizontalDivider(
-                            thickness = 1.dp,
-                            color = if (note != categoryNotes[categoryNotes.lastIndex])
-                                colorResource(R.color.divider)
-                            else Color.Transparent,
-                            modifier = Modifier.padding(vertical = 16.dp)
-                        )
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = if (note != categoryNotes[categoryNotes.lastIndex])
+                            colorResource(R.color.divider)
+                        else Color.Transparent,
+                        modifier = Modifier.padding(vertical = 16.dp)
+                    )
 
-                   // SetImage(
-                   //     null,
-                   //     painterResource(id = R.drawable.app_poster2),
-                   //     Modifier,
-                   //     RoundedCornerShape(0),
-                   //     ContentScale.Crop
-                   // )
+                    // SetImage(
+                    //     null,
+                    //     painterResource(id = R.drawable.app_poster2),
+                    //     Modifier,
+                    //     RoundedCornerShape(0),
+                    //     ContentScale.Crop
+                    // )
                 }
             }
         }
+    }
     if (deletedNote.isNotEmpty())
         DeleteAlertDialog(
             dialogText = stringResource(R.string.delete_note),
@@ -155,6 +158,10 @@ fun ScreenNotes(
                 deletedNote = listOf()
             }
         )
+    BackHandler {
+        dbViewModel.setAddNewNoteNewCategoryState()
+        navController.popBackStack()
+    }
 }
 
 @Composable
@@ -180,7 +187,7 @@ fun NoteView(
             Text(
                 textAlign = TextAlign.Start,
                 modifier = Modifier.weight(1f),
-                text = note.note?.description ?: "",
+                text = note.note.description,
                 fontSize = 24.sp,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
@@ -192,7 +199,7 @@ fun NoteView(
                 modifier = Modifier
                     .padding(end = 4.dp)
                     .background(
-                        color = when (note.note?.priority) {
+                        color = when (note.note.priority) {
                             1 -> colorResource(R.color.promo_red)
                             2 -> colorResource(R.color.yellow)
                             else -> colorResource(R.color.hint_green)
@@ -204,7 +211,7 @@ fun NoteView(
 
             }
 
-            if (note.note?.alarmDateTime != null && note.note?.alarmDateTime != 0L)
+            if (note.note.alarmDateTime != 0L)
                 Icon(
                     painter = painterResource(R.drawable.icon_add_alert),
                     contentDescription = null,

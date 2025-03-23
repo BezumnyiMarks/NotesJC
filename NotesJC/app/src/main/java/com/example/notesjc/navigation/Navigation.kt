@@ -63,12 +63,11 @@ fun Navigation(
     context: Context,
     scheduler: AndroidAlarmScheduler,
     player: NotificationPlayer?,
-    noteDateTimeID: Long
 ){
+
     NavHost(
         navController = navController,
-        startDestination = if (noteDateTimeID == 0L) ScreenCategories
-        else ScreenAlarm(noteDateTimeID)
+        startDestination = ScreenCategories
     ){
         composable<ScreenCategories>{
             ScreenCategories(dbViewModel, navController)
@@ -84,14 +83,12 @@ fun Navigation(
         }
 
         composable<ScreenAdd>{
-            val args = it.toRoute<ScreenAdd>()
             ScreenAdd(
                 dbViewModel,
                 navController,
                 permissionsManager,
                 context,
                 scheduler,
-                args.currentNoteDateTime,
             )
         }
 
@@ -145,7 +142,6 @@ fun BottomNavMenu(
     context: Context,
     scheduler: AndroidAlarmScheduler,
     player: NotificationPlayer?,
-    noteDateTimeID: Long
 ){
     val bottomNavItems = listOf(
         BottomNavItem(
@@ -202,7 +198,7 @@ fun BottomNavMenu(
                                                 popUpTo(navController.graph.findStartDestination().id)
                                                 launchSingleTop = true
                                             }
-                                            1 -> navController.navigate(ScreenAdd(null))
+                                            1 -> navController.navigate(ScreenAdd)
                                             2 -> navController.navigate(ScreenArchive)
                                         }
                                     },
@@ -232,7 +228,6 @@ fun BottomNavMenu(
                     context,
                     scheduler,
                     player,
-                    noteDateTimeID
                 )
             }
         }

@@ -20,6 +20,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,38 +51,39 @@ fun PriorityChangeBottomSheet(
     val currentNote = dbViewModel.currentNote.collectAsState().value
     val bottomSheetState = rememberModalBottomSheetState()
 
-    if (currentNote.note?.priority == null)
-        currentNote.note = currentNote.note?.copy(priority = 3)
-
     val radioButtons = remember {
         mutableStateListOf(
             Priority(
                 priority = 1,
-                selected = currentNote.note?.priority == 1
+                selected = currentNote.note.priority == 1
             ),
             Priority(
                 priority = 2,
-                selected = currentNote.note?.priority == 2
+                selected = currentNote.note.priority == 2
             ),
             Priority(
                 priority = 3,
-                selected = currentNote.note?.priority == 3
+                selected = currentNote.note.priority == 3
             )
         )
     }
 
     var selectedPriority by rememberSaveable {
-        mutableStateOf(currentNote.note?.priority)
+        mutableIntStateOf(currentNote.note.priority)
     }
 
     val coroutineScope = rememberCoroutineScope()
 
     ModalBottomSheet(
         onDismissRequest = {
-            selectedPriority = radioButtons.find {
+            radioButtons.find {
                 it.selected
-            }?.priority
-            onDismiss(selectedPriority ?: 3)
+            }?.priority.also {
+                if (it != null) {
+                    selectedPriority = it
+                }
+            }
+            onDismiss(selectedPriority)
         },
         sheetState = bottomSheetState
     ) {
@@ -101,9 +103,13 @@ fun PriorityChangeBottomSheet(
                                 radioButtons.replaceAll{
                                     it.copy(selected = it.priority == priority.priority)
                                 }
-                                selectedPriority = radioButtons.find {
+                                radioButtons.find {
                                     it.selected
-                                }?.priority
+                                }?.priority.also {
+                                    if (it != null) {
+                                        selectedPriority = it
+                                    }
+                                }
                                 coroutineScope.launch {
                                     delay(200)
                                     onDismiss(selectedPriority ?: 3)
@@ -120,9 +126,13 @@ fun PriorityChangeBottomSheet(
                                     radioButtons.replaceAll{
                                         it.copy(selected = it.priority == priority.priority)
                                     }
-                                    selectedPriority = radioButtons.find {
+                                    radioButtons.find {
                                         it.selected
-                                    }?.priority
+                                    }?.priority.also {
+                                        if (it != null) {
+                                            selectedPriority = it
+                                        }
+                                    }
                                     coroutineScope.launch {
                                         delay(200)
                                         onDismiss(selectedPriority ?: 3)
@@ -171,12 +181,16 @@ fun PriorityChangeBottomSheet(
                             radioButtons.replaceAll{
                                 it.copy(selected = it.priority == priority.priority)
                             }
-                            selectedPriority = radioButtons.find {
+                            radioButtons.find {
                                 it.selected
-                            }?.priority
+                            }?.priority.also {
+                                if (it != null) {
+                                    selectedPriority = it
+                                }
+                            }
                             coroutineScope.launch {
                                 delay(200)
-                                onDismiss(selectedPriority ?: 3)
+                                onDismiss(selectedPriority)
                             }
                         }
                     )

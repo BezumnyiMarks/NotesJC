@@ -17,7 +17,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -32,29 +35,25 @@ class DBViewModel @Inject constructor(
     val allNotes = MutableStateFlow<List<FullNote>>(listOf())
     val mediaStoreImagesUri = MutableStateFlow<List<Uri>>(listOf())
     val chosenImagesUri = MutableStateFlow<List<Uri>>(listOf())
-    val currentNote = MutableStateFlow(FullNote())
-    val onNewIntentGetExtra = MutableStateFlow(0L)
+    val currentNote = MutableStateFlow(FullNote(Note()))
 
-    fun clearIntentExtra(){
-        onNewIntentGetExtra.value = 0L
-    }
+    private val screenAddStateListener = MutableStateFlow<ScreenAddState>(ScreenAddState.AddNewNoteNewCategory)
+    fun observeScreenAddState() = screenAddStateListener.asStateFlow()
 
     fun saveNote(relevant: Boolean){
         viewModelScope.launch {
-            val dateTimeMillis: Long = if (currentNote.value.note?.noteDateTimeID == null)
-                Calendar.getInstance().timeInMillis
-            else currentNote.value.note?.noteDateTimeID ?: 0L
+            val dateTimeMillis: Long = if (currentNote.value.note.noteDateTimeID != 0L)
+                currentNote.value.note.noteDateTimeID
+            else Calendar.getInstance().timeInMillis
 
-            val category = if (currentNote.value.note?.category.isNullOrEmpty())
-                context.getString(R.string.no_category)
-            else currentNote.value.note?.category
+            val category = currentNote.value.note.category.ifEmpty { context.getString(R.string.no_category) }
 
-            currentNote.value.note = currentNote.value.note?.copy(
+            currentNote.value.note = currentNote.value.note.copy(
                 noteDateTimeID = dateTimeMillis,
                 category = category,
                 relevant = relevant
             )
-            appDatabase.notesDao().insertNote(currentNote.value.note ?: Note())
+            appDatabase.notesDao().insertNote(currentNote.value.note)
 
             saveImages(dateTimeMillis)
         }
@@ -75,14 +74,13 @@ class DBViewModel @Inject constructor(
                     } == 0)
                     appDatabase.notesDao().deleteImages(listOf(oldImage))
             }
-            currentNote.value = FullNote()
+            setAddNewNoteNewCategoryState()
         }
     }
 
     fun getByDateTime(dateTime: Long){
         viewModelScope.launch {
-            val note = appDatabase.notesDao().getByDateTime(dateTime)
-            currentNote.value = note
+            currentNote.value = appDatabase.notesDao().getByDateTime(dateTime)
         }
     }
 
@@ -103,7 +101,7 @@ class DBViewModel @Inject constructor(
             val notes = mutableListOf<Note>()
             val images = mutableListOf<Image>()
             fullNotesList.forEach { fullNote ->
-                notes.add(fullNote.note ?: Note())
+                notes.add(fullNote.note)
                 fullNote.images?.forEach { image ->
                     images.add(image)
                 }
@@ -114,20 +112,20 @@ class DBViewModel @Inject constructor(
     }
 
     fun updateCurrentCategory(category: String){
-        currentNote.value.note = currentNote.value.note?.copy(category = category)
+        currentNote.value.note = currentNote.value.note.copy(category = category)
     }
 
     fun updateCurrentDescription(description: String){
-        currentNote.value.note = currentNote.value.note?.copy(description = description)
+        currentNote.value.note = currentNote.value.note.copy(description = description)
     }
 
-    fun updateCurrentAlarmDateTime(dateTimeMillis: Long?){
+    fun updateCurrentAlarmDateTime(dateTimeMillis: Long){
         val note = currentNote.value
-        currentNote.value = FullNote(note.note?.copy(alarmDateTime = dateTimeMillis), note.images)
+        currentNote.value = FullNote(note.note.copy(alarmDateTime = dateTimeMillis), note.images)
     }
 
     fun updateCurrentPriority(priority: Int){
-        currentNote.value.note = currentNote.value.note?.copy(priority = priority)
+        currentNote.value.note = currentNote.value.note.copy(priority = priority)
     }
 
     fun addCurrentImages(imagesUriList: List<Uri>){
@@ -156,7 +154,7 @@ class DBViewModel @Inject constructor(
     }
 
     fun clearCurrentNote(){
-        currentNote.value = FullNote()
+        currentNote.value = FullNote(Note())
     }
 
     fun addChosenImage(imageUri: Uri){
@@ -173,5 +171,53 @@ class DBViewModel @Inject constructor(
 
     fun clearChosenImagesList(){
         chosenImagesUri.value = listOf()
+    }
+
+    fun setAddNewNoteNewCategoryState(){
+        viewModelScope.launch {
+            screenAddStateListener.emit(
+                ScreenAddState.AddNewNoteNewCategory
+            )
+        }
+    }
+
+    fun setAddNewNoteSelectedCategoryState(category: String){
+        viewModelScope.launch {
+            screenAddStateListener.emit(
+                ScreenAddState.AddNewNoteSelectedCategory(category)
+            )
+        }
+    }
+
+    fun setEditSelectedNoteState(noteDateTimeID: Long){
+        viewModelScope.launch {
+            screenAddStateListener.emit(
+                ScreenAddState.EditSelectedNote(noteDateTimeID)
+            )
+        }
+    }
+
+    fun setEditAlarmTriggeredNoteState(noteDateTimeID: Long){
+        viewModelScope.launch {
+            screenAddStateListener.emit(
+                ScreenAddState.EditAlarmTriggeredNote(noteDateTimeID)
+            )
+        }
+    }
+
+    fun setEditState(){
+        viewModelScope.launch {
+            screenAddStateListener.emit(
+                ScreenAddState.Edit
+            )
+        }
+    }
+
+    sealed class ScreenAddState{
+        data object AddNewNoteNewCategory: ScreenAddState()
+        data class AddNewNoteSelectedCategory(val category: String): ScreenAddState()
+        data class EditSelectedNote(val noteDateTimeID: Long): ScreenAddState()
+        data class EditAlarmTriggeredNote(val noteDateTimeID: Long): ScreenAddState()
+        data object Edit: ScreenAddState()
     }
 }
